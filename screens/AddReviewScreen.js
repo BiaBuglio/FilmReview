@@ -18,9 +18,10 @@ export default function AddReviewScreen() {
   const [rating, setRating] = useState('');
   const [reviewText, setReviewText] = useState('');
   const [imageUri, setImageUri] = useState(null);
+  const [sending, setSending] = useState(false);
 
   const pickImage = async () => {
-    // Solicitar permissão para acessar a galeria
+    // Request permission to access gallery
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
@@ -40,13 +41,13 @@ export default function AddReviewScreen() {
     }
   };
 
-  const handleSubmit = () => {
-    // Validação dos campos
+  const handleSubmit = async () => {
     if (movieName.trim() === '') {
       Alert.alert('Erro', 'Por favor, informe o nome do filme.');
       return;
     }
-    if (!rating || isNaN(rating) || rating < 1 || rating > 5) {
+    const ratingValue = parseFloat(rating);
+    if (!rating || isNaN(ratingValue) || ratingValue < 1 || ratingValue > 5) {
       Alert.alert('Erro', 'Informe uma avaliação válida (1 a 5).');
       return;
     }
@@ -59,14 +60,85 @@ export default function AddReviewScreen() {
       return;
     }
 
-    // Aqui você faria a chamada para a API para enviar a review
+    try {
+      setSending(true);
 
-    Alert.alert('Sucesso', 'Review cadastrada com sucesso!');
-    // Resetar formulário
-    setMovieName('');
-    setRating('');
-    setReviewText('');
-    setImageUri(null);
+      // Check if the movie already exists
+      const movieResponse = await fetch(`http://localhost:3000/movies?name=${encodeURIComponent(movieName)}`);
+      if (!movieResponse.ok) {
+        Alert.alert('Erro ao buscar filme');
+        setSending(false);
+        return;
+      }
+      const movies = await movieResponse.json();
+
+      let movieId;
+      if (movies.length > 0) {
+        movieId = movies[0].id;
+      } else {
+        // Create a new movie with image upload
+        const formData = new FormData();
+        formData.append('name', movieName);
+
+        // Determine file type from URI
+        const uriParts = imageUri.split('.');
+        const fileType = uriParts[uriParts.length - 1];
+        formData.append('photo', {
+          uri: imageUri,
+          name: `photo.${fileType}`,
+          type: `image/${fileType}`,
+        });
+
+        const createMovieResponse = await fetch('http://localhost:3000/movies', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (!createMovieResponse.ok) {
+          Alert.alert('Erro ao cadastrar filme');
+          setSending(false);
+          return;
+        }
+        const newMovie = await createMovieResponse.json();
+        movieId = newMovie.id;
+      }
+
+      // Use a fixed userId for demo; adapt to actual user authentication
+      const userId = 1;
+
+      // Create the review
+      const createReviewResponse = await fetch('http://localhost:3000/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          movieId,
+          rating: ratingValue,
+          reviewText,
+        }),
+      });
+
+      if (!createReviewResponse.ok) {
+        Alert.alert('Erro ao cadastrar review');
+        setSending(false);
+        return;
+      }
+
+      Alert.alert('Sucesso', 'Review cadastrada com sucesso!');
+      setMovieName('');
+      setRating('');
+      setReviewText('');
+      setImageUri(null);
+      setSending(false);
+    } catch (error) {
+      Alert.alert('Erro na comunicação com o servidor');
+      setSending(false);
+    }
   };
 
   return (
@@ -77,6 +149,7 @@ export default function AddReviewScreen() {
         value={movieName}
         onChangeText={setMovieName}
         placeholder="Digite o nome do filme"
+        editable={!sending}
       />
 
       <Text style={styles.label}>Avaliação (1 a 5, pode usar 1.5, 2.5 etc.)</Text>
@@ -86,6 +159,7 @@ export default function AddReviewScreen() {
         onChangeText={setRating}
         keyboardType="decimal-pad"
         placeholder="Ex: 3.5"
+        editable={!sending}
       />
 
       <Text style={styles.label}>Review (até 250 caracteres)</Text>
@@ -96,10 +170,11 @@ export default function AddReviewScreen() {
         multiline
         maxLength={250}
         placeholder="Escreva sua review"
+        editable={!sending}
       />
 
       <Text style={styles.label}>Foto do Filme</Text>
-      <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+      <TouchableOpacity style={styles.imagePicker} onPress={pickImage} disabled={sending}>
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.imagePreview} />
         ) : (
@@ -107,7 +182,7 @@ export default function AddReviewScreen() {
         )}
       </TouchableOpacity>
 
-      <Button title="Cadastrar Review" onPress={handleSubmit} />
+      <Button title={sending ? "Enviando..." : "Cadastrar Review"} onPress={handleSubmit} disabled={sending} />
     </ScrollView>
   );
 }

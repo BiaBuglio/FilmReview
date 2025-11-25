@@ -9,42 +9,39 @@ import {
 } from 'react-native';
 
 export default function ProfileScreen({ route }) {
-  const { userId } = route.params; // User ID of the profile to display
+  const { username } = route.params; // username of the profile to display
 
   const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
-  const [biography, setBiography] = useState('');
+  const [bio, setBio] = useState('');
   const [pronouns, setPronouns] = useState('');
-  const [profilePhoto, setProfilePhoto] = useState(null); // Uri of profile photo
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch the public user profile data from API using userId
-    // Example placeholder:
-    /*
-    fetch(`API_ENDPOINT_TO_GET_PUBLIC_PROFILE/${userId}`)
-      .then(response => response.json())
-      .then(data => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await fetch(`http://localhost:3000/profile/${username}`);
+        if (!response.ok) {
+          Alert.alert('Erro ao carregar perfil');
+          setLoading(false);
+          return;
+        }
+        const data = await response.json();
         setFullName(data.fullName);
-        setUsername(data.username);
-        setBiography(data.biography);
+        setBio(data.bio);
         setPronouns(data.pronouns);
-        setProfilePhoto(data.profilePhoto);
+        setProfilePhoto(data.photo);
+        setReviews(data.reviews || []);
         setLoading(false);
-      })
-      .catch(error => {
-        console.error(error);
+      } catch (error) {
+        Alert.alert('Erro na conexão');
         setLoading(false);
-      });
-    */
-    // Temporary static demo data:
-    setFullName('Jane Smith');
-    setUsername('jane_smith');
-    setBiography('Movie buff and blogger.');
-    setPronouns('she/her');
-    setProfilePhoto(null);
-    setLoading(false);
-  }, [userId]);
+      }
+    };
+
+    fetchUserProfile();
+  }, [username]);
 
   if (loading) {
     return (

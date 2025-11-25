@@ -6,23 +6,67 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Alert,
+  Switch,
 } from 'react-native';
 
 export default function HomeScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
   const [reviews, setReviews] = useState([]);
+  const [searchType, setSearchType] = useState('movie'); // 'movie' or 'user'
+  const [loading, setLoading] = useState(false);
 
-  const handleSearch = () => {
-    // Aqui você faria a chamada API para buscar os reviews do filme
-    // Por enquanto, vamos limpar a lista se nada buscado
+  const handleSearch = async () => {
     if (searchText.trim() === '') {
       setReviews([]);
       return;
     }
 
-    // Simulação de resultado vazio para filmes não encontrados
-    // Aqui você faria a requisição para o backend e atualizaria o estado `reviews`
-    setReviews([]);
+    setLoading(true);
+
+    if (searchType === 'user') {
+      // Search for user profile
+      try {
+        const response = await fetch(`http://localhost:3000/profile/${searchText}`);
+        if (response.status === 404) {
+          Alert.alert('Usuário não encontrado');
+          setLoading(false);
+          return;
+        }
+        if (!response.ok) {
+          Alert.alert('Erro ao buscar usuário');
+          setLoading(false);
+          return;
+        }
+        const userData = await response.json();
+        setLoading(false);
+        // Navigate to Profile screen with username param
+        navigation.navigate('Profile', { username: userData.username });
+      } catch (error) {
+        Alert.alert('Erro na conexão');
+        setLoading(false);
+      }
+    } else {
+      // Search for movie reviews
+      try {
+        const response = await fetch(`http://localhost:3000/reviews?name=${encodeURIComponent(searchText)}`);
+        if (!response.ok) {
+          Alert.alert('Erro ao buscar filmes');
+          setLoading(false);
+          return;
+        }
+        const data = await response.json();
+        setLoading(false);
+        if (data.reviews && Array.isArray(data.reviews)) {
+          setReviews(data.reviews);
+        } else {
+          setReviews([]);
+        }
+      } catch (error) {
+        Alert.alert('Erro na conexão');
+        setLoading(false);
+      }
+    }
   };
 
   const renderReview = ({ item }) => (
@@ -35,34 +79,56 @@ export default function HomeScreen({ navigation }) {
     >
       <Text style={styles.reviewTitle}>{item.movieName}</Text>
       <Text style={styles.reviewText}>{item.reviewText}</Text>
+      <Text style={styles.reviewUser}>por @{item.username}</Text>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Buscar filme:</Text>
+      <View style={styles.toggleContainer}>
+        <Text>Buscar Filme</Text>
+        <Switch
+          value={searchType === 'user'}
+          onValueChange={() => {
+            setSearchType(searchType === 'user' ? 'movie' : 'user');
+            setReviews([]);
+            setSearchText('');
+          }}
+        />
+        <Text>Buscar Usuário</Text>
+      </View>
+
       <TextInput
         style={styles.input}
-        placeholder="Digite o nome do filme"
+        placeholder={
+          searchType === 'user'
+            ? 'Digite o nome de usuário'
+            : 'Digite o nome do filme'
+        }
         value={searchText}
         onChangeText={setSearchText}
         onSubmitEditing={handleSearch}
         returnKeyType="search"
+        editable={!loading}
       />
 
-      {reviews.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
-            Seu gosto é peculiar, seja o primeiro a avaliar esse filme!
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={reviews}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderReview}
-          contentContainerStyle={styles.listContainer}
-        />
+      {loading && <Text>Carregando...</Text>}
+
+      {!loading && searchType === 'movie' && (
+        reviews.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              Seu gosto é peculiar, seja o primeiro a avaliar esse filme!
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={reviews}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderReview}
+            contentContainerStyle={styles.listContainer}
+          />
+        )
       )}
 
       <TouchableOpacity
@@ -88,10 +154,11 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#fff',
   },
-  label: {
-    fontSize: 18,
-    marginBottom: 8,
-    fontWeight: 'bold',
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   input: {
     borderWidth: 1,
@@ -128,6 +195,11 @@ const styles = StyleSheet.create({
   },
   reviewText: {
     fontSize: 14,
+  },
+  reviewUser: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   addButton: {
     position: 'absolute',
