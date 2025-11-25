@@ -2,98 +2,77 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   Image,
-  FlatList,
-  TouchableOpacity,
   ScrollView,
-  Button,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 
-export default function ProfileScreen() {
-  const [username, setUsername] = useState('Usuário');
+export default function ProfileScreen({ route }) {
+  const { userId } = route.params; // User ID of the profile to display
+
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [biography, setBiography] = useState('');
-  const [profilePhoto, setProfilePhoto] = useState(null); // Uri da foto de perfil
-  const [userReviews, setUserReviews] = useState([]);
+  const [pronouns, setPronouns] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState(null); // Uri of profile photo
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Aqui faria a chamada para carregar dados do usuário e seus reviews via API
-    // Por enquanto, dados simulados
-    setUsername('FilmLover123');
-    setBiography('Apaixonado por cinema e críticas de filmes.');
-    setUserReviews([
-      {
-        id: 1,
-        movieName: 'Matrix',
-        reviewText: 'Filme revolucionário e muito envolvente.',
-      },
-      {
-        id: 2,
-        movieName: 'Inception',
-        reviewText: 'Intrigante e cheio de camadas.',
-      },
-    ]);
-  }, []);
+    // TODO: Fetch the public user profile data from API using userId
+    // Example placeholder:
+    /*
+    fetch(`API_ENDPOINT_TO_GET_PUBLIC_PROFILE/${userId}`)
+      .then(response => response.json())
+      .then(data => {
+        setFullName(data.fullName);
+        setUsername(data.username);
+        setBiography(data.biography);
+        setPronouns(data.pronouns);
+        setProfilePhoto(data.profilePhoto);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error(error);
+        setLoading(false);
+      });
+    */
+    // Temporary static demo data:
+    setFullName('Jane Smith');
+    setUsername('jane_smith');
+    setBiography('Movie buff and blogger.');
+    setPronouns('she/her');
+    setProfilePhoto(null);
+    setLoading(false);
+  }, [userId]);
 
-  const handleSaveProfile = () => {
-    // Aqui enviaria os dados atualizados para backend via API
-    Alert.alert('Perfil', 'Perfil atualizado com sucesso!');
-  };
-
-  const renderReview = ({ item }) => (
-    <View style={styles.reviewItem}>
-      <Text style={styles.movieName}>{item.movieName}</Text>
-      <Text style={styles.reviewText}>{item.reviewText}</Text>
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#333" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Foto de perfil</Text>
-
-      <TouchableOpacity
-        style={styles.photoPlaceholder}
-        onPress={() => {
-          // Aqui poderia abrir a galeria para escolher foto
-          Alert.alert('Foto', 'Selecione uma foto de perfil (não implementado)');
-        }}
-      >
-        {profilePhoto ? (
-          <Image source={{ uri: profilePhoto }} style={styles.photo} />
-        ) : (
-          <Text style={styles.photoText}>Clique para adicionar foto</Text>
-        )}
-      </TouchableOpacity>
-
-      <Text style={styles.label}>Nome de usuário</Text>
-      <TextInput
-        value={username}
-        onChangeText={setUsername}
-        style={styles.input}
-        maxLength={30}
+      <Image
+        source={
+          profilePhoto
+            ? { uri: profilePhoto }
+            : require('../assets/icon.png') // default profile picture
+        }
+        style={styles.photo}
       />
 
-      <Text style={styles.label}>Biografia</Text>
-      <TextInput
-        value={biography}
-        onChangeText={setBiography}
-        style={[styles.input, styles.bioInput]}
-        multiline
-        maxLength={150}
-      />
+      <Text style={styles.fullName}>{fullName}</Text>
+      <Text style={styles.username}>@{username}</Text>
 
-      <Button title="Salvar perfil" onPress={handleSaveProfile} />
+      <Text style={styles.label}>Biography</Text>
+      <Text style={styles.text}>{biography || 'No biography provided.'}</Text>
 
-      <Text style={[styles.label, { marginTop: 24 }]}>Minhas Reviews</Text>
-      <FlatList
-        data={userReviews}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderReview}
-        contentContainerStyle={styles.reviewsList}
-        ListEmptyComponent={<Text>Você ainda não postou reviews.</Text>}
-      />
+      <Text style={styles.label}>Pronouns</Text>
+      <Text style={styles.text}>{pronouns || 'Not specified'}</Text>
     </ScrollView>
   );
 }
@@ -102,57 +81,38 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     backgroundColor: '#fff',
-  },
-  label: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginVertical: 8,
-  },
-  photoPlaceholder: {
-    height: 120,
-    width: 120,
-    backgroundColor: '#ddd',
-    borderRadius: 60,
-    justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  photoText: {
-    color: '#666',
   },
   photo: {
     height: 120,
     width: 120,
     borderRadius: 60,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#bbb',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: '#ddd',
     marginBottom: 12,
   },
-  bioInput: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  reviewsList: {
-    paddingBottom: 50,
-  },
-  reviewItem: {
-    backgroundColor: '#f9f9f9',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  movieName: {
+  fullName: {
+    fontSize: 24,
     fontWeight: 'bold',
-    fontSize: 15,
-    marginBottom: 4,
   },
-  reviewText: {
+  username: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 16,
+  },
+  label: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    alignSelf: 'flex-start',
+    marginTop: 12,
+  },
+  text: {
     fontSize: 14,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
